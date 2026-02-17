@@ -1,0 +1,27 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.out
+fastq
+build/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug
+*.dSYM/
+core
+vgcore.*
+
+# Dependencies (local builds)
+deps/
+
+# Private roadmap
+FASTQ_ROADMAP.md
