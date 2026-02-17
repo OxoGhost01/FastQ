@@ -4,16 +4,19 @@ A high-performance job queue written in C, backed by Redis.
 
 FastQ aims to be **faster**, **leaner on RAM**, and **polyglot** compared to existing job queue solutions like BullMQ, Sidekiq, or Celery.
 
-## Features (planned)
+## Features
 
-- Blazing fast push/pop via Redis Lists
+- Fast push/pop via Redis Lists with MULTI/EXEC pipelining
 - Priority queues (high / normal / low)
+- Multi-threaded worker pool (pthreads) with Redis connection pooling
 - Automatic retries with exponential backoff
-- Dead Letter Queue
-- Multi-threaded worker pool
-- Language bindings: **C** (native), **Python**, **Node.js**, and more
-- Prometheus metrics & health endpoint
+- Dead Letter Queue for permanently failed jobs
+- Crash recovery for orphaned jobs
 - Daemon mode with systemd support
+- Python bindings (CPython C extension)
+- CLI tool (`fastq push`, `pop`, `stats`, `worker`, `recover`)
+- Colored logging (DEBUG/INFO/WARN/ERROR)
+- Zero external runtime dependencies beyond Redis
 
 ## Building
 
@@ -42,62 +45,51 @@ make test
 make valgrind
 ```
 
+### Benchmark
+
+```bash
+make bench
+```
+
+### Python bindings
+
+```bash
+make python
+python3 -c "import fastq; q = fastq.Queue('myqueue'); q.push('{\"hello\":1}')"
+```
+
 ## Project Structure
 
 ```
 fastq/
-├── src/           # Core library source
-├── include/       # Public headers
-├── tests/         # Unit and integration tests
-├── examples/      # Usage examples
-├── docs/          # Architecture & API design docs
+├── src/                # Core library source
+├── include/            # Public headers
+├── tests/              # Unit and integration tests
+├── benchmarks/         # Throughput benchmarks
+├── bindings/python/    # Python CPython extension
+├── docs/               # Architecture & API design docs
 ├── Makefile
-└── run_redis.sh   # Dev Redis launcher
+├── fastq.service       # systemd unit file
+└── run_redis.sh        # Dev Redis launcher
 ```
 
 ## Roadmap
 
-### Phase 0 - Setup & Architecture
-- [x] Research (hiredis, Redis data structures, existing solutions)
-- [x] Project structure & build system
-- [x] Architecture & API design documentation
-- [x] Dev environment setup
+**Done** — Core engine, multi-threaded workers, priority queues, connection pooling, daemon mode, crash recovery, Python bindings
 
-### Phase 1 - Core MVP
-- [ ] Redis adapter (connect, disconnect, ping)
-- [ ] Queue operations (push / pop)
-- [ ] Job serialization (JSON)
-- [ ] Single-threaded worker with callback handler
-- [ ] Retry with exponential backoff
-- [ ] Dead Letter Queue
-- [ ] CLI tool (`fastq push`, `pop`, `stats`, `worker`)
-- [ ] Basic stats & logging
-- [ ] Integration tests, zero memory leaks
+**Next up**
+- Node.js bindings
+- Job scheduling (delayed + cron)
+- Rate limiting & batch processing
 
-### Phase 2 - Production Ready
-- [ ] Multi-threaded worker pool (pthreads)
-- [ ] Redis connection pooling
-- [ ] Configuration file support
-- [ ] Priority queues
-- [ ] Memory & Redis optimizations
-- [ ] Python bindings
-- [ ] Daemon mode & systemd service
-- [ ] Crash recovery for orphaned jobs
+**Later**
+- Prometheus metrics & health endpoint
+- Workflow DAGs (job chaining with dependencies)
 
-### Phase 3 - Pro Features
-- [ ] Delayed & cron-like job scheduling
-- [ ] Rate limiting (token bucket, per-queue & global)
-- [ ] Batch processing
-- [ ] Prometheus metrics & health endpoint
-- [ ] Job chaining & workflow DAGs
-- [ ] Node.js bindings
-
-### Phase 4 - Polish & Launch
-- [ ] Full test suite (unit, integration, load, stress)
-- [ ] Security audit
-- [ ] Packaging (deb, Docker)
-- [ ] Documentation & website
-- [ ] v1.0.0 release
+**Future**
+- Go / Rust bindings
+- Web UI
+- Kubernetes operator
 
 ## License
 
