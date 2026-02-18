@@ -1,0 +1,14 @@
+{
+  "name": "fastq-native",
+  "version": "0.3.0",
+  "description": "High-performance Redis job queue — Node.js N-API binding",
+  "main": "index.js",
+  "scripts": {
+    "build": "node-gyp build",
+    "rebuild": "node-gyp rebuild",
+    "install": "node-gyp rebuild"
+  },
+  "gypfile": true,
+  "keywords": ["redis", "queue", "job", "worker", "native"],
+  "license": "GPL-3.0"
+}

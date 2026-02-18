@@ -100,8 +100,7 @@ static int dev_handler(fastq_job_t *job, void *user_data)
     return 0;
 }
 
-static int cmd_worker(fastq_queue_t *q, int threads, int daemon_mode,
-                      const char *pid_file, const char *log_file)
+static int cmd_worker(fastq_queue_t *q, int threads, int daemon_mode, const char *pid_file, const char *log_file)
 {
     if (daemon_mode) {
         if (fastq_daemonize(pid_file, log_file) != FASTQ_OK) {
@@ -122,8 +121,7 @@ static int cmd_worker(fastq_queue_t *q, int threads, int daemon_mode,
     signal(SIGTERM, sighandler);
 
     if (!daemon_mode)
-        printf("Worker started (%d thread%s). Press Ctrl+C to stop.\n",
-               threads, threads > 1 ? "s" : "");
+        printf("Worker started (%d thread%s). Press Ctrl+C to stop.\n", threads, threads > 1 ? "s" : "");
 
     fastq_worker_start(g_worker);
     fastq_worker_destroy(g_worker);

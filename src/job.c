@@ -13,13 +13,18 @@ char *fastq_generate_id(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    unsigned long ms  = (unsigned long)ts.tv_sec * 1000 +
-                        (unsigned long)ts.tv_nsec / 1000000;
-    unsigned long seq = atomic_fetch_add_explicit(&g_id_seq, 1,
-                                                  memory_order_relaxed);
+    unsigned long ms  = (unsigned long)ts.tv_sec * 1000 + (unsigned long)ts.tv_nsec / 1000000;
+    unsigned long seq = atomic_fetch_add_explicit(&g_id_seq, 1, memory_order_relaxed);
     char *id = malloc(32);
     if (id) snprintf(id, 32, "%lx-%lx", ms, seq);
     return id;
+}
+
+long fastq_now_us(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long)ts.tv_sec * 1000000L + (long)ts.tv_nsec / 1000L;
 }
 
 fastq_job_t *fastq_job_create(const char *payload, fastq_priority_t priority)
@@ -49,6 +54,7 @@ void fastq_job_destroy(fastq_job_t *job)
     free(job->queue_name);
     free(job->payload);
     free(job->error);
+    free(job->wf_id);
     free(job);
 }
 
@@ -78,6 +84,9 @@ char *fastq_job_serialize(const fastq_job_t *job)
     if (job->completed_at)
         json_object_object_add(obj, "completed_at",
             json_object_new_int64(job->completed_at));
+    if (job->wf_id)
+        json_object_object_add(obj, "wf_id",
+            json_object_new_string(job->wf_id));
 
     const char *s = json_object_to_json_string(obj);
     char *result = strdup(s);
@@ -96,15 +105,13 @@ static char *jstr(json_object *obj, const char *key)
 static int jint(json_object *obj, const char *key, int def)
 {
     json_object *v;
-    return json_object_object_get_ex(obj, key, &v) ?
-           json_object_get_int(v) : def;
+    return json_object_object_get_ex(obj, key, &v) ? json_object_get_int(v) : def;
 }
 
 static time_t jtime(json_object *obj, const char *key)
 {
     json_object *v;
-    return json_object_object_get_ex(obj, key, &v) ?
-           (time_t)json_object_get_int64(v) : 0;
+    return json_object_object_get_ex(obj, key, &v) ? (time_t)json_object_get_int64(v) : 0;
 }
 
 fastq_job_t *fastq_job_deserialize(const char *json_str)
@@ -124,6 +131,7 @@ fastq_job_t *fastq_job_deserialize(const char *json_str)
     job->payload      = jstr(obj, "payload");
     job->queue_name   = jstr(obj, "queue");
     job->error        = jstr(obj, "error");
+    job->wf_id        = jstr(obj, "wf_id");
     job->priority     = jint(obj, "priority",    FASTQ_PRIORITY_NORMAL);
     job->retries      = jint(obj, "retries",     0);
     job->max_retries  = jint(obj, "max_retries", 5);

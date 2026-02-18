@@ -2,7 +2,7 @@
 #include <Python.h>
 #include "fastq.h"
 
-/* ── Queue Object ───────────────────────────────────────────────── */
+/* Queue Object */
 
 typedef struct {
     PyObject_HEAD
@@ -24,8 +24,7 @@ static int Queue_init(PyFastQQueue *self, PyObject *args, PyObject *kwds)
     const char *name = NULL;
 
     static char *kwlist[] = {"name", "host", "port", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|si", kwlist,
-                                     &name, &host, &port))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|si", kwlist, &name, &host, &port))
         return -1;
 
     self->redis = fastq_redis_connect(host, port);
@@ -101,18 +100,18 @@ static PyObject *Queue_stats(PyFastQQueue *self, PyObject *Py_UNUSED(args))
     }
 
     return Py_BuildValue("{s:i, s:i, s:i, s:i, s:i}",
-                         "pending",    s.pending,
-                         "processing", s.processing,
-                         "done",       s.done,
-                         "failed",     s.failed,
-                         "delayed",    s.delayed);
+                            "pending", s.pending,
+                            "processing", s.processing,
+                            "done", s.done,
+                            "failed", s.failed,
+                            "delayed", s.delayed);
 }
 
 static PyMethodDef Queue_methods[] = {
-    {"push",  (PyCFunction)Queue_push,  METH_VARARGS,
+    {"push", (PyCFunction)Queue_push, METH_VARARGS,
      "push(payload, priority=2) -> job_id\n"
      "Push a job onto the queue. Returns the job ID string."},
-    {"pop",   (PyCFunction)Queue_pop,   METH_VARARGS,
+    {"pop", (PyCFunction)Queue_pop, METH_VARARGS,
      "pop(timeout=5) -> dict or None\n"
      "Pop a job from the queue. Returns a dict with id, payload, priority, retries."},
     {"stats", (PyCFunction)Queue_stats, METH_NOARGS,
@@ -123,24 +122,24 @@ static PyMethodDef Queue_methods[] = {
 
 static PyTypeObject PyFastQQueueType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name      = "fastq.Queue",
+    .tp_name = "fastq.Queue",
     .tp_basicsize = sizeof(PyFastQQueue),
-    .tp_dealloc   = (destructor)Queue_dealloc,
-    .tp_flags     = Py_TPFLAGS_DEFAULT,
-    .tp_doc       = "FastQ Queue(name, host='127.0.0.1', port=6379)",
-    .tp_methods   = Queue_methods,
-    .tp_init      = (initproc)Queue_init,
-    .tp_new       = PyType_GenericNew,
+    .tp_dealloc = (destructor)Queue_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "FastQ Queue(name, host='127.0.0.1', port=6379)",
+    .tp_methods = Queue_methods,
+    .tp_init = (initproc)Queue_init,
+    .tp_new = PyType_GenericNew,
 };
 
-/* ── Worker Object ──────────────────────────────────────────────── */
+/* Worker */
 
 typedef struct {
     PyObject_HEAD
-    PyFastQQueue    *py_queue;
-    PyObject        *callback;
-    fastq_worker_t  *worker;
-    int              num_threads;
+    PyFastQQueue *py_queue;
+    PyObject *callback;
+    fastq_worker_t *worker;
+    int num_threads;
 } PyFastQWorker;
 
 static int py_handler(fastq_job_t *job, void *user_data)
@@ -188,9 +187,7 @@ static int Worker_init(PyFastQWorker *self, PyObject *args, PyObject *kwds)
     int threads = 1;
 
     static char *kwlist[] = {"queue", "handler", "threads", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|i", kwlist,
-                                     &PyFastQQueueType, &queue_obj,
-                                     &callback, &threads))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|i", kwlist, &PyFastQQueueType, &queue_obj, &callback, &threads))
         return -1;
 
     if (!PyCallable_Check(callback)) {
@@ -198,14 +195,13 @@ static int Worker_init(PyFastQWorker *self, PyObject *args, PyObject *kwds)
         return -1;
     }
 
-    self->py_queue   = (PyFastQQueue *)queue_obj;
+    self->py_queue = (PyFastQQueue *)queue_obj;
     Py_INCREF(self->py_queue);
-    self->callback   = callback;
+    self->callback = callback;
     Py_INCREF(self->callback);
     self->num_threads = threads;
 
-    self->worker = fastq_worker_create(self->py_queue->queue,
-                                        py_handler, self->callback);
+    self->worker = fastq_worker_create(self->py_queue->queue, py_handler, self->callback);
     if (!self->worker) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to create worker");
         return -1;
@@ -231,23 +227,23 @@ static PyObject *Worker_stop(PyFastQWorker *self, PyObject *Py_UNUSED(args))
 
 static PyMethodDef Worker_methods[] = {
     {"start", (PyCFunction)Worker_start, METH_NOARGS, "Start the worker (blocking)."},
-    {"stop",  (PyCFunction)Worker_stop,  METH_NOARGS, "Signal the worker to stop."},
+    {"stop", (PyCFunction)Worker_stop, METH_NOARGS, "Signal the worker to stop."},
     {NULL}
 };
 
 static PyTypeObject PyFastQWorkerType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name      = "fastq.Worker",
+    .tp_name = "fastq.Worker",
     .tp_basicsize = sizeof(PyFastQWorker),
-    .tp_dealloc   = (destructor)Worker_dealloc,
-    .tp_flags     = Py_TPFLAGS_DEFAULT,
-    .tp_doc       = "FastQ Worker(queue, handler, threads=1)",
-    .tp_methods   = Worker_methods,
-    .tp_init      = (initproc)Worker_init,
-    .tp_new       = PyType_GenericNew,
+    .tp_dealloc = (destructor)Worker_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "FastQ Worker(queue, handler, threads=1)",
+    .tp_methods = Worker_methods,
+    .tp_init = (initproc)Worker_init,
+    .tp_new = PyType_GenericNew,
 };
 
-/* ── Module ─────────────────────────────────────────────────────── */
+/* Module */
 
 static PyObject *py_set_log_level(PyObject *Py_UNUSED(self), PyObject *args)
 {
@@ -288,9 +284,9 @@ PyMODINIT_FUNC PyInit_fastq(void)
     PyModule_AddObject(m, "Worker", (PyObject *)&PyFastQWorkerType);
 
     /* Priority constants */
-    PyModule_AddIntConstant(m, "PRIORITY_HIGH",   FASTQ_PRIORITY_HIGH);
+    PyModule_AddIntConstant(m, "PRIORITY_HIGH", FASTQ_PRIORITY_HIGH);
     PyModule_AddIntConstant(m, "PRIORITY_NORMAL", FASTQ_PRIORITY_NORMAL);
-    PyModule_AddIntConstant(m, "PRIORITY_LOW",    FASTQ_PRIORITY_LOW);
+    PyModule_AddIntConstant(m, "PRIORITY_LOW", FASTQ_PRIORITY_LOW);
 
     return m;
 }

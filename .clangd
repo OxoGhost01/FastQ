@@ -1,5 +1,6 @@
 CompileFlags:
   Add:
     - -I/home/oxoghost/Documents/SynologyDrive/Code_things/C/FastQ/include
+    - -I/usr/include
+    - -I/usr/include/node
     - -D_POSIX_C_SOURCE=200809L
-    - -std=c11

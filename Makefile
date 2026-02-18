@@ -1,6 +1,6 @@
 CC      = gcc
 CFLAGS  = -Wall -Wextra -Werror -std=c11 -pedantic -D_POSIX_C_SOURCE=200809L -Iinclude
-LDFLAGS = -lhiredis -ljson-c -lpthread
+LDFLAGS = -lhiredis -ljson-c -lpthread -lssl -lcrypto
 
 SRC_DIR   = src
 INC_DIR   = include
@@ -24,7 +24,7 @@ PY_SRC    = bindings/python/fastq_module.c
 PY_CFLAGS = $(shell python3-config --includes) -Iinclude -fPIC
 PY_LDFLAGS = -L$(BUILD_DIR) -lfastq $(LDFLAGS) $(shell python3-config --ldflags --embed 2>/dev/null || python3-config --ldflags)
 
-.PHONY: all clean test valgrind bench python
+.PHONY: all clean test valgrind bench python node
 
 all: $(LIB) $(BIN)
 
@@ -83,7 +83,12 @@ python: $(PY_SO)
 $(PY_SO): $(PY_SRC) $(PIC_LIB) | $(BUILD_DIR)
 	$(CC) -shared -fPIC $(PY_CFLAGS) $< -L$(BUILD_DIR) -lfastq_pic $(LDFLAGS) -o $@
 
+# Node.js N-API bindings (requires node-gyp)
+node: $(PIC_LIB)
+	cd bindings/node && node-gyp rebuild 2>&1
+
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f bindings/python/fastq*.so
 	rm -rf bindings/python/build
+	rm -rf bindings/node/build

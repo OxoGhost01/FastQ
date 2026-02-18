@@ -1,7 +1,6 @@
 #include "fastq.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <pthread.h>
 
@@ -42,7 +41,7 @@ static void print_latency(double *lat, int n, double elapsed_us)
            percentile(lat, n, 99), lat[0], lat[n - 1], sum / n);
 }
 
-/* ── Push benchmark ────────────────────────────────────────────────── */
+/* Push benchmark */
 
 static void bench_push(const char *host, int port, int num_jobs)
 {
@@ -78,7 +77,7 @@ static void bench_push(const char *host, int port, int num_jobs)
     printf("\n");
 }
 
-/* ── Pop benchmark (single thread) ─────────────────────────────────── */
+/* Pop benchmark (single thread) */
 
 static void bench_pop_single(const char *host, int port, int num_jobs)
 {
@@ -121,7 +120,7 @@ static void bench_pop_single(const char *host, int port, int num_jobs)
     printf("\n");
 }
 
-/* ── Multi-threaded worker benchmark ────────────────────────────────── */
+/* Multi-threaded worker benchmark */
 
 static int bench_handler(fastq_job_t *job, void *user_data)
 {
@@ -131,7 +130,7 @@ static int bench_handler(fastq_job_t *job, void *user_data)
 }
 
 typedef struct {
-    fastq_queue_t  *q;
+    fastq_queue_t *q;
     fastq_worker_t *w;
 } drain_arg_t;
 
@@ -153,8 +152,7 @@ static void *drain_thread(void *arg)
     return NULL;
 }
 
-static void bench_worker_mt(const char *host, int port, int num_jobs,
-                            int threads)
+static void bench_worker_mt(const char *host, int port, int num_jobs, int threads)
 {
     printf("[worker: %d thread%s, %d jobs]\n",
            threads, threads > 1 ? "s" : "", num_jobs);
@@ -189,7 +187,7 @@ static void bench_worker_mt(const char *host, int port, int num_jobs,
     printf("\n");
 }
 
-/* ── Main ───────────────────────────────────────────────────────────── */
+/* Main */
 
 int main(int argc, char **argv)
 {

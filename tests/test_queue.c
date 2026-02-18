@@ -1,11 +1,13 @@
 #include "fastq.h"
+#include "fastq_internal.h"
+#include <hiredis/hiredis.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 #define TEST(name) static void name(void)
-#define RUN(name) do { printf("  %-40s", #name); name(); printf("OK\n"); } while(0)
+#define RUN(name) do { printf(" %-40s", #name); name(); printf("OK\n"); } while(0)
 
 static fastq_redis_t *g_redis = NULL;
 
@@ -21,9 +23,25 @@ static void teardown(void)
     g_redis = NULL;
 }
 
+/* Delete all Redis keys belonging to a test queue to avoid stale-data failures
+   when re-running tests (e.g. a retried job left in the delayed sorted set). */
+static void flush_queue_keys(const char *name)
+{
+    redisContext *ctx = fastq_redis_get_ctx(g_redis);
+    if (!ctx) return;
+    const char *suffixes[] = {"high", "normal", "low", "delayed", "dead", "done"};
+    for (int i = 0; i < 6; i++) {
+        char key[256];
+        snprintf(key, sizeof(key), "fastq:queue:%s:%s", name, suffixes[i]);
+        redisReply *r = redisCommand(ctx, "DEL %s", key);
+        if (r) freeReplyObject(r);
+    }
+}
+
 TEST(test_push_pop_single)
 {
     setup();
+    flush_queue_keys("test2_single");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_single");
     assert(q != NULL);
 
@@ -49,6 +67,7 @@ TEST(test_push_pop_single)
 TEST(test_push_fifo_order)
 {
     setup();
+    flush_queue_keys("test2_fifo");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_fifo");
 
     char *ids[10];
@@ -77,6 +96,7 @@ TEST(test_push_fifo_order)
 TEST(test_pop_timeout)
 {
     setup();
+    flush_queue_keys("test2_empty_pop");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_empty_pop");
 
     fastq_job_t *job = fastq_pop(q, 1);
@@ -89,6 +109,7 @@ TEST(test_pop_timeout)
 TEST(test_priority_ordering)
 {
     setup();
+    flush_queue_keys("test2_prio");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_prio");
 
     /* Push low first, then high */
@@ -157,6 +178,7 @@ TEST(test_stats)
 TEST(test_job_fail_retry)
 {
     setup();
+    flush_queue_keys("test2_retry");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_retry");
 
     fastq_job_t *job = fastq_job_create("{\"retry\":true}", FASTQ_PRIORITY_NORMAL);
@@ -183,6 +205,7 @@ TEST(test_job_fail_retry)
 TEST(test_job_fail_to_dlq)
 {
     setup();
+    flush_queue_keys("test2_dlq");
     fastq_queue_t *q = fastq_queue_create(g_redis, "test2_dlq");
 
     fastq_job_t *job = fastq_job_create("{\"dlq\":true}", FASTQ_PRIORITY_NORMAL);
@@ -217,8 +240,10 @@ TEST(test_job_fail_to_dlq)
 
 TEST(test_pooled_queue)
 {
-    fastq_queue_t *q = fastq_queue_create_pooled("127.0.0.1", 6379,
-                                                  "test2_pooled", 4);
+    setup();
+    flush_queue_keys("test2_pooled");
+    teardown();
+    fastq_queue_t *q = fastq_queue_create_pooled("127.0.0.1", 6379, "test2_pooled", 4);
     assert(q != NULL);
 
     fastq_job_t *job = fastq_job_create("{\"pooled\":true}", FASTQ_PRIORITY_HIGH);
