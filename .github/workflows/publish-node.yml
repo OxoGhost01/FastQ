@@ -1,0 +1,101 @@
+name: Publish Node.js package to npm
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-prebuilds:
+    name: Build prebuilds on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+          - os: macos-14
+            arch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y build-essential libhiredis-dev libjson-c-dev libssl-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install hiredis json-c openssl
+
+      - name: Build main FastQ library (Linux)
+        if: runner.os == 'Linux'
+        run: make
+
+      - name: Build main FastQ library (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          make \
+            CFLAGS="-Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude \
+              -I$(brew --prefix openssl)/include \
+              -I$(brew --prefix hiredis)/include \
+              -I$(brew --prefix json-c)/include" \
+            LDFLAGS="-L$(brew --prefix openssl)/lib \
+              -L$(brew --prefix hiredis)/lib \
+              -L$(brew --prefix json-c)/lib \
+              -lhiredis -ljson-c -lssl -lcrypto -lpthread"
+
+      - name: Build prebuilds (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd bindings/node
+          npm install
+          npx prebuildify --napi --strip
+
+      - name: Build prebuilds (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd bindings/node
+          npm install
+          CPATH="$(brew --prefix hiredis)/include:$(brew --prefix json-c)/include:$(brew --prefix openssl)/include:$CPATH" \
+          LIBRARY_PATH="$(brew --prefix hiredis)/lib:$(brew --prefix json-c)/lib:$(brew --prefix openssl)/lib:$LIBRARY_PATH" \
+          npx prebuildify --napi --strip
+
+      - name: Upload prebuilds
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilds-${{ matrix.os }}
+          path: bindings/node/prebuilds/
+
+  publish:
+    name: Publish to npm
+    needs: build-prebuilds
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all prebuilds
+        uses: actions/download-artifact@v4
+        with:
+          path: bindings/node/prebuilds/
+          merge-multiple: true
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: bindings/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
